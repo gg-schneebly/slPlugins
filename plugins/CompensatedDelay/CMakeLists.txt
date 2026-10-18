@@ -81,7 +81,7 @@ target_compile_definitions(${PLUGIN_NAME}
         DONT_SET_USING_JUCE_NAMESPACE=1
         JucePlugin_MaxNumInputChannels=2
         JucePlugin_MaxNumOutputChannels=2
-        JucePlugin_PreferredChannelConfigurations={1,1},{2,2}
+        "JucePlugin_PreferredChannelConfigurations={1, 1}, {2, 2}"
 )
 
 set_target_properties(${PLUGIN_NAME} PROPERTIES
