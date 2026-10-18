@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "SpectrumView.h"
 
 //==============================================================================
 /**
@@ -17,8 +18,8 @@ public:
     void resized() override;
     juce::Rectangle<int> getGridArea (int x, int y, int w = 1, int h = 1) override;
 
-    drow::Spectroscope scopeL {10};
-    drow::Spectroscope scopeR {10};
+    SpectrumView spectrumL;
+    SpectrumView spectrumR;
     
     drow::Sonogram sonogramL {10};
     drow::Sonogram sonogramR {10};

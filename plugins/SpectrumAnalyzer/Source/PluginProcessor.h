@@ -6,6 +6,7 @@ class PluginEditor;
 
 #define PARAM_MODE     "mode"
 #define PARAM_LOG      "log"
+#define PARAM_RES      "res"
 
 //==============================================================================
 /**
@@ -28,6 +29,10 @@ public:
     bool hasEditor() const override;
 
     //==============================================================================
+
+    /** Maps the Resolution parameter (0, 1, 2) to an FFT size (4096, 8192, 16384). */
+    static int resolutionToFftOrder (int resolution)  { return 12 + juce::jlimit (0, 2, resolution); }
+    static int resolutionToFftSize (int resolution)   { return 1 << resolutionToFftOrder (resolution); }
 
     juce::CriticalSection lock;
     PluginEditor* editor = nullptr;

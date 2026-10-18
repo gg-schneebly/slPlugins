@@ -15,24 +15,33 @@
 PluginEditor::PluginEditor (PluginProcessor& p)
     : gin::ProcessorEditor (p), proc (p)
 {
-    addAndMakeVisible (&scopeL);
-    addAndMakeVisible (&scopeR);
+    addAndMakeVisible (&spectrumL);
+    addAndMakeVisible (&spectrumR);
 
     addAndMakeVisible (&sonogramL);
     addAndMakeVisible (&sonogramR);
     
-    thread.addTimeSliceClient (&scopeL);
-    thread.addTimeSliceClient (&scopeR);
     thread.addTimeSliceClient (&sonogramL);
     thread.addTimeSliceClient (&sonogramR);
     thread.startThread();
 
-    scopeL.setColour (drow::Spectroscope::lineColourId, findColour (gin::PluginLookAndFeel::grey45ColourId));
-    scopeL.setColour (drow::Spectroscope::backgroundColourId, juce::Colours::transparentBlack);
-    scopeL.setColour (drow::Spectroscope::traceColourId, juce::Colours::white.overlaidWith (juce::Colours::blue.withAlpha (0.3f)));
-    scopeR.setColour (drow::Spectroscope::lineColourId, findColour (gin::PluginLookAndFeel::grey45ColourId));
-    scopeR.setColour (drow::Spectroscope::backgroundColourId, juce::Colours::transparentBlack);
-    scopeR.setColour (drow::Spectroscope::traceColourId, juce::Colours::white.overlaidWith (juce::Colours::yellow.withAlpha (0.3f)));
+    const auto traceL = juce::Colours::white.overlaidWith (juce::Colours::blue.withAlpha (0.3f));
+    const auto traceR = juce::Colours::white.overlaidWith (juce::Colours::yellow.withAlpha (0.3f));
+
+    for (auto* s : { &spectrumL, &spectrumR })
+    {
+        s->setColour (SpectrumView::gridColourId, findColour (gin::PluginLookAndFeel::grey45ColourId).withAlpha (0.6f));
+        s->setColour (SpectrumView::textColourId, findColour (gin::PluginLookAndFeel::grey45ColourId).brighter (0.4f));
+        s->setSampleRate (p.getSampleRate());
+    }
+
+    spectrumL.setColour (SpectrumView::traceColourId, traceL);
+    spectrumL.setColour (SpectrumView::fillColourId, traceL.withAlpha (0.08f));
+    spectrumR.setColour (SpectrumView::traceColourId, traceR);
+    spectrumR.setColour (SpectrumView::fillColourId, traceR.withAlpha (0.08f));
+
+    // Both channels are stacked in the same area, so only one draws the grid
+    spectrumR.setDrawGrid (false);
 
     sonogramL.setColour (drow::Sonogram::lineColourId, findColour (gin::PluginLookAndFeel::grey45ColourId));
     sonogramL.setColour (drow::Sonogram::backgroundColourId, juce::Colours::black);
@@ -45,7 +54,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     {
         gin::ParamComponent* pc;
 
-        if (pp->getUid() == PARAM_MODE)
+        if (pp->getUid() == PARAM_MODE || pp->getUid() == PARAM_RES)
             pc = new gin::Select (pp);
         else if (pp->isOnOff())
             pc = new gin::Switch (pp);
@@ -87,8 +96,8 @@ void PluginEditor::resized()
 
     auto rc = juce::Rectangle<int> (inset, headerHeight + inset, getWidth() - cx - 2 * inset - 10, getHeight() - headerHeight - 2 * inset);
 
-    scopeL.setBounds (rc);
-    scopeR.setBounds (rc);
+    spectrumL.setBounds (rc);
+    spectrumR.setBounds (rc);
 
     if (processor.getTotalNumInputChannels() == 1)
     {
@@ -104,22 +113,27 @@ void PluginEditor::resized()
     
     componentForId (PARAM_MODE)->setBounds (getGridArea (0, 0));
     componentForId (PARAM_LOG)->setBounds (getGridArea (0, 1));
+    componentForId (PARAM_RES)->setBounds (getGridArea (0, 2));
 }
 
 void PluginEditor::updateScope()
 {
     int mode = proc.parameterIntValue (PARAM_MODE);
     
-    scopeL.setVisible (mode == 0);
-    scopeR.setVisible (mode == 0);
+    spectrumL.setVisible (mode == 0);
+    spectrumR.setVisible (mode == 0 && processor.getTotalNumInputChannels() > 1);
     
     sonogramL.setVisible (mode == 1);
     sonogramR.setVisible (mode == 1);
     
     bool log = proc.parameterIntValue (PARAM_LOG) != 0;
     
-    scopeL.setLogFrequencyDisplay (log);
-    scopeR.setLogFrequencyDisplay (log);
+    spectrumL.setLogFrequencyDisplay (log);
+    spectrumR.setLogFrequencyDisplay (log);
+
+    const int order = PluginProcessor::resolutionToFftOrder (proc.parameterIntValue (PARAM_RES));
+    spectrumL.setFftOrder (order);
+    spectrumR.setFftOrder (order);
     sonogramL.setLogFrequencyDisplay (log);
     sonogramR.setLogFrequencyDisplay (log);
 }

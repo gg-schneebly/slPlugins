@@ -33,6 +33,18 @@ std::variant<float, juce::String> modeTextFunction (const gin::Parameter&, const
     return t.getFloatValue();
 }
 
+std::variant<float, juce::String> resolutionTextFunction (const gin::Parameter&, const std::variant<float, juce::String>& in)
+{
+    if (auto v = std::get_if<float> (&in))
+        return juce::String (PluginProcessor::resolutionToFftSize (int (*v)) / 1024) + "k";
+
+    auto t = std::get<juce::String> (in).trim();
+    for (int i = 0; i < 3; i++)
+        if (t.equalsIgnoreCase (juce::String (PluginProcessor::resolutionToFftSize (i) / 1024) + "k"))
+            return float (i);
+    return t.getFloatValue();
+}
+
 //==============================================================================
 static gin::ProcessorOptions createProcessorOptions()
 {
@@ -68,6 +80,7 @@ PluginProcessor::PluginProcessor()
 
     addExtParam (PARAM_MODE, "Mode", "", "", {0.0f, 1.0f, 1.0f, 1.0f}, 0.0f, 0.0f, modeTextFunction);
     addExtParam (PARAM_LOG,  "Log",  "", "", {0.0f, 1.0f, 1.0f, 1.0f}, 0.0f, 0.0f, onOffTextFunction);
+    addExtParam (PARAM_RES,  "Resolution", "", "", {0.0f, 2.0f, 1.0f, 1.0f}, 1.0f, 0.0f, resolutionTextFunction);
 
     init();
 }
@@ -77,8 +90,14 @@ PluginProcessor::~PluginProcessor()
 }
 
 //==============================================================================
-void PluginProcessor::prepareToPlay (double, int)
+void PluginProcessor::prepareToPlay (double sampleRate, int)
 {
+    juce::ScopedLock sl (lock);
+    if (editor != nullptr)
+    {
+        editor->spectrumL.setSampleRate (sampleRate);
+        editor->spectrumR.setSampleRate (sampleRate);
+    }
 }
 
 void PluginProcessor::releaseResources()
@@ -94,12 +113,12 @@ void PluginProcessor::processBlock (juce::AudioSampleBuffer& buffer, juce::MidiB
     if (editor != nullptr)
     {
         const int num = buffer.getNumSamples();
-        editor->scopeL.copySamples (buffer.getReadPointer (0), num);
+        editor->spectrumL.pushSamples (buffer.getReadPointer (0), num);
         editor->sonogramL.copySamples (buffer.getReadPointer (0), num);
         
         if (getTotalNumInputChannels() > 1)
         {
-            editor->scopeR.copySamples (buffer.getReadPointer (1), num);
+            editor->spectrumR.pushSamples (buffer.getReadPointer (1), num);
             editor->sonogramR.copySamples (buffer.getReadPointer (1), num);
         }
     }
